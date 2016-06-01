@@ -32,10 +32,15 @@ THEORY OF OPERATION
 'genx' is invoked with a minimum of two arguments, the path to the target XPR project (--xprfile), and then the filenames of Verilog source files that contain tasks for 'genx' to perform with respect to that project.  The tasks are embedded in the source files using block comments with special markers, they look like this:
 
 /*@@job:my_define_setup
-    add_define("BOARD_ZEDBOARD")
-    add_define("ENABLE_FEATURE1")
-    add_define_value("FREQUENCY",440)
-    write_defines_verilog( "my_defines.vh" )
+
+ add_define("BOARD_ZEDBOARD")
+ 
+ add_define("ENABLE_FEATURE1")
+ 
+ add_define_value("FREQUENCY",440)
+ 
+ write_defines_verilog( "my_defines.vh" )
+ 
 @@end-job*/
 
 What 'genx' does, is to find these chunks of Ruby code demarcated by the job and end-job markers, extract all the lines of text between the markers, and execute those chunks of code directly (in the same order as they are written in the file) - within the context of the genx script itself.   What that means is the Ruby code written in the block comment above gets virtually 'copy and pasted' into the body of the genx script and executed (specifically accomplished by way of the Ruby 'eval' command). This has some implications:
