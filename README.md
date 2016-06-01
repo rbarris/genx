@@ -234,5 +234,7 @@ Now you can synthesize and generate bitstream etc.  If you hit errors which requ
 TODO'S
 
 Add board-table CSV files in 'lib' for krtkl's snickerdoodle / snickerdoodle-black
+
 Extend "starter" demo to run on snickerdoodle
+
 Write some Tcl glue to make it easier to invoke 'genx' from inside the Vivado IDE as a button
