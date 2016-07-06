@@ -974,20 +974,27 @@ def xdc_add_pin( netname, conn, connpin ) ###_EXT_### add one pin mapping to the
   # conn is a connector label for the board (JA, JB, etc)
   # connpin is a designator of a pin on the connector - e.g. P01, P02, etc.
 
+	# scrub any whitespace that may have snuck in
+	conn.strip!
+	connpin.strip!
+
   # using the board table, map conn and conn_pin to the chip_pad
   boardtable_rows = $g_xdc_boardtable.select{ |row| (row[:conn]==conn) && (row[:conn_pin]==connpin) }
 
   if (boardtable_rows.size == 1)
     # found the connector in the board table, and now we know the pad name
     chip_pad = boardtable_rows[0][:chip_pad]
-  
+    
+    # scrub whitespace
+  	chip_pad.strip!
+  	
     # look up the pad name so it can be mapped to the internal signal name
     # this is just for a comment to be left in the XDC for sanity checking
     chiptable_rows = $g_xdc_chiptable.select{ |chiprow| (chiprow[:chip_pad]==chip_pad) }
     if (chiptable_rows.size == 1)
-      pad_signal = chiptable_rows[0][:pad_signal]
+      pad_signal = chiptable_rows[0][:pad_signal].strip
     else
-      pad_signal = "???"
+      pad_signal = "???#{chiptable_rows.size}???"
     end
 
     if ($debugmode!=0)
