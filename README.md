@@ -3,7 +3,7 @@ Script for Xilinx/Vivado/Zynq developers.  Automates generation / maintenance of
 
 If you're looking for the 'starter' demo Vivado/XSDK project referenced here in the README, an archive is stored on Google Drive:
 
-https://drive.google.com/open?id=0B62pcVtpg2pVRGVTcDFtaTk2ckU
+https://drive.google.com/open?id=0B62pcVtpg2pVbVBVV1JRb19wWkU - this is revision 2 and includes Vivado projects for Zedboard, Snickerdoodle, and Snickerdoodle Black.  I have physically tested the bitstream and SDK-built software demo on both Zedboard and Snickerdoodle Black. (I don't yet have a Snickerdoodle base model, but there is a good chance that the demo I built for that board should just work.)
 
 BACKGROUND
 
@@ -62,11 +62,12 @@ Once you have downloaded and unpacked the archive, navigate to the demo folder (
 
 Return to shell and verify you are set to the 'genxdemos' working directory, then run genx as shown below.
 
-    genx.rb --xprfile ./starter_zb/starter_zb.xpr starter.v
+    (Zedboard)
+    genx.rb --define BOARD_ZB --xprfile ./starter_zb/starter_zb.xpr starter.v
 
-a script is included in the demo directory "do_starter_gen.sh" which can do this more conveniently)
+The arguments inform 'genx' where the target Vivado project is located, and the name of the source file to scan, which contains the job code specific to the project.  Also, the --define argument allows us to pass in a symbol to be defined and become visible to the Verilog sources as well as C code in the SDK.
 
-The arguments inform 'genx' where the target Vivado project is located, and the name of the source file to scan, which contains the job code specific to the project.
+Scripts for each Vivado project / board-target are included which can do this more conveniently: ksd_gen.sh, ksdb_gen.sh, and zb_gen.sh; each one sets the appropriate define for the targeted board.
 
 After 'genx' runs, a number of files should have been generated in the 'gen' directory inside 'starter_zb'.  The 'gen' directory will be created if it doesn't already exist.  These include
 
@@ -85,13 +86,13 @@ DEMO CODE
 
 The demo code is arranged in a series of sections, each affiliated with some combination of output pins, input pins, CPU-visible registers, and user logic.
 
-On Zedboard, each section winds up driving one of the eight LED's on the board (LD0-LD7), and possibly reading the corresponding switch (SW0-SW7).  The state of the LED pins is also mirrored to the 8 signal pins on connector JB (PMod).
+On Zedboard, each section winds up driving one of the eight LED's on the board (LD0-LD7), and possibly reading the corresponding switch (SW0-SW7).  The state of the LED pins is also mirrored to the 8 signal pins on connector JB (PMod).  On Snickerdoodle, these groups of outbound signals are routed to pins on JA1 and JB1 connectors, and the switches are faked (hardwired to FF in starter.v).
 
 The sections are meant to show a progression from a very simple piece of user logic to more complex forms that also involve code running on the ARM CPU and communicating through registers on the AXI bus.
 
 Demo sections 0-3 have zero CPU involvement; the higher numbered sections have CPU software involvement and AXI-interface register glue.  The demo CPU side runs "bare metal" on the Zynq's ARM processor, there's no Linux involved.
 
-Since demos 0-3 don't involve the CPU, they will start running as soon as the FPGA has been programmed and comes out of reset.
+Since demos 0-3 don't involve the CPU, they will start running as soon as the FPGA has been programmed and comes out of reset. (I have noticed on Snickerdoodle that this may not actually happen until the SDK debugger has the demo app loaded and paused at 'main')
 
 Starting with all four SW0-SW3 turned off, you'll see the LEDs counting in binary (a '0' being shown as a dim PWM level, and a '1' being a brighter level).  As you turn on each switch, that individual demo will switch from the binary counting animation to a unique pattern for each:
 
@@ -101,6 +102,8 @@ demo2: animate using first quadrant of a sinewave ROM to effect an "attack/decay
 demo3: animate using an LFSR random number generator.
 
 All the Verilog code for these is contained in starter.v.
+
+There is a movie of the Zedboard LED animation in the 'extras' subfolder of the demo folder.  There is also a screenshot from Saleae Logic16 showing the output waveforms on the pins of Snickerdoodle Black.
 
 To run the CPU based demos, you will need to launch the Xilinx SDK.  Assuming you made some change to the genx job code st the top of starter.v, or any change that would affect the built hardware, you would need to follow these steps to re-spin the bitstream and take it over to the XSDK:
 
@@ -118,7 +121,7 @@ Once FPGA is programmed and app is launched in debugger, even if code is stopped
 
 You can add "regs" to the XSDK debugger variable pane and examine the fields of the PL hardware that are exposed by AXI bus.
 
-On my system I am able to monitor the Zedboard UART output using minicom and port /dev/ttyACM0 at 115200 baud, so I see the "Hello World" and the periodic prints from the demo loop each time it notices the hardware FIFO in the demo design emptying and then refills it with 255 samples of random PWM fade values.
+On my system I am able to monitor the Zedboard/Snickerdoodle UART output using minicom and port /dev/ttyACM0 at 115200 baud, so I see the "Hello World" and the periodic prints from the demo loop each time it notices the hardware FIFO in the demo design emptying and then refills it with 255 samples of random PWM fade values.
 
 CAVEATS / Q&A / TBD
 
@@ -200,7 +203,7 @@ Click the Validate Design button on the left edge of the Diagram Editor, you sho
 
 Go to the Sources panel and make sure Hierarchy/Sources tab is active at the bottom of the panel.  Expand the "Design Sources" section in the panel and you should see "system.bd" present, this represents the block design just created.
 
-Right click that "system.bd" entry and select "Create HDL Wrapper" on it.  Leave the checkbox in the Create HDL Wrapper setup dialog set to "Let Vivado manage wrapper and auto-update" and click OK.  This step is really really important.  Don't skip it.  Strange build problems will happen later!
+Right click that "system.bd" entry and select "Create HDL Wrapper" on it.  Leave the checkbox in the Create HDL Wrapper setup dialog set to "Let Vivado manage wrapper and auto-update" and click OK.  This step is really really important.  Don't skip it.  Strange build problems will happen later if you forget!
 
 In Sources panel, note the creation of system_wrapper.v, this is a top level source file that tracks the components in the BD and how they are linked together.
 
@@ -214,7 +217,7 @@ Assuming you have a central Verilog source file analogous to the "starter.v" fil
 
 then the genx invocation would be (assuming you are in 'stuff' working directory):
 
-    genx.rb --xprfile ./trafficlight/trafficlight.xpr ./trafficlight.v
+    genx.rb --define BOARD_ZB --xprfile ./trafficlight/trafficlight.xpr ./trafficlight.v
 
 and generated code will arrive in stuff/trafficlight/gen.
 
@@ -232,9 +235,5 @@ if your component has pins that are intended to mate up with external pins, you'
 Now you can synthesize and generate bitstream etc.  If you hit errors which require you to change the 'genx' job code, make sure to re-run genx after saving out edits there.
 
 TODO'S
-
-Add board-table CSV files in 'lib' for krtkl's snickerdoodle / snickerdoodle-black
-
-Extend "starter" demo to run on snickerdoodle
 
 Write some Tcl glue to make it easier to invoke 'genx' from inside the Vivado IDE as a button
