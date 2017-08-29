@@ -541,7 +541,7 @@ end
 $g_reg_defs = nil
 $g_reg_offset = 0
 $g_max_offset = 16; # one past last byte.  16 bytes of addr decode created even if only one register.
-
+$g_unit_decl_text = ""; # text buffer to collect unit structure definitions from axi_add_unit_decl
   
 def next_powerof2(val)  # return a power of two which is >= the value provided. aka 2^(ceil(log2(val)))
   result = 1
@@ -605,6 +605,30 @@ def axi_add_reg( rname, rmode="passive", rcomment="" ) ###_EXT_### add one regis
   #autoinc for the next one
   axi_set_reg_offset( rbyteoffset + 4 )
 end
+
+
+def axi_add_unit_decl( unit_decl_name, unit_reg_list ) ###_EXT_###  convenience function to generate C decls for register groups (units)
+    # unit_reg_list is an array of 3-element arrays
+    # each sub array is rname/rmode/rcomment
+    # assume no padding, in ascending order, 4 bytes each, generate C struct to match
+
+    unit_decl_text = "";
+
+    # open the struct
+    unit_decl_text << "typedef struct #{unit_decl_name}\n{\n";
+
+    # pour in the regs
+    unit_reg_list.each do |reg|
+      unit_decl_text << "\tunsigned long\t#{'%-40s' % reg[0]};\t//#{'%-60s' % reg[2]}\n";
+    end
+
+    # close the struct
+    unit_decl_text << "};\n\n";
+
+    # concat it on the main decl buffer
+    $g_unit_decl_text << unit_decl_text;
+end
+
 
 def axi_gen_text( text ) ###_EXT_### emit the finished text of the generated AXI glue for the register set.
   # emit glue text: params, ports, logic.
@@ -849,6 +873,9 @@ def axi_write_c_and_v_header( structname, c_headername, v_headername ) ###_EXT_#
 
   # no munging the struct name, pass it through as-is
   chdr_text += sprintf("} %s;\n\n", structname )
+
+  # concat the unit decls onto the C header
+  chdr_text << $g_unit_decl_text;
 
   # ship it out
   if (c_headername != "") then
