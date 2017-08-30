@@ -615,7 +615,7 @@ def axi_add_unit_decl( unit_decl_name, unit_reg_list ) ###_EXT_###  convenience 
     unit_decl_text = "";
 
     # open the struct
-    unit_decl_text << "typedef struct #{unit_decl_name}\n{\n";
+    unit_decl_text << "typedef struct\n{\n";
 
     # pour in the regs
     unit_reg_list.each do |reg|
@@ -623,7 +623,7 @@ def axi_add_unit_decl( unit_decl_name, unit_reg_list ) ###_EXT_###  convenience 
     end
 
     # close the struct
-    unit_decl_text << "};\n\n";
+    unit_decl_text << "}  #{unit_decl_name};\n\n";
 
     # concat it on the main decl buffer
     $g_unit_decl_text << unit_decl_text;
