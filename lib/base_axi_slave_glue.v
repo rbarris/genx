@@ -10,6 +10,10 @@
 // Vivado will notice the change (unlike behavior seen with the original C_S_AXI_* parameters where it
 // might latch the first seen value when component added to block design)
 
+// if GLUE_SW_RESET is defined (set it acrosss all reinclusions) - a second reset line is provided
+// so the slave device can reset itself (including all of the registers in AXI glue)
+// that wire must be called SW_AXI_RESETN and must be active low, as it will get ANDed with S_AXI_RESETN.
+
 `ifdef GLUE_EMIT_PARAMS
 	// ship out one dummy parameter so hosting code doesn't get stuck with an empty parameter list in parens
 	parameter integer DUMMY_GLUE_PARAM = 42
@@ -84,6 +88,15 @@
 // ############################# logic sourced from glue
 
 `ifdef GLUE_EMIT_LOGIC
+
+`ifdef GLUE_SW_RESET
+	// client design has to assign to SW_AXI_ARESETN active low wire if GLUE_SW_RESET is defined.
+	wire SW_AXI_ARESETN;
+	wire GLUE_RESETN = S_AXI_ARESETN & SW_AXI_ARESETN;
+`else
+	wire GLUE_RESETN = S_AXI_ARESETN;
+`endif
+
 	// AXI4LITE signals
 	reg [X_AXI_ADDR_WIDTH_X-1 : 0] 	axi_awaddr;
 	reg  	axi_awready;
@@ -133,7 +146,7 @@
 
 	always @( posedge S_AXI_ACLK )
 	begin
-	  if ( S_AXI_ARESETN == 1'b0 )
+	  if ( GLUE_RESETN == 1'b0 )
 	    begin
 	      axi_awready <= 1'b0;
 	    end 
@@ -160,7 +173,7 @@
 
 	always @( posedge S_AXI_ACLK )
 	begin
-	  if ( S_AXI_ARESETN == 1'b0 )
+	  if ( GLUE_RESETN == 1'b0 )
 	    begin
 	      axi_awaddr <= 0;
 	    end 
@@ -181,7 +194,7 @@
 
 	always @( posedge S_AXI_ACLK )
 	begin
-	  if ( S_AXI_ARESETN == 1'b0 )
+	  if ( GLUE_RESETN == 1'b0 )
 	    begin
 	      axi_wready <= 1'b0;
 	    end 
@@ -215,7 +228,7 @@
 
 	always @( posedge S_AXI_ACLK )
 	begin
-	  if ( S_AXI_ARESETN == 1'b0 )
+	  if ( GLUE_RESETN == 1'b0 )
 	    begin
 				// genx inserts register reset statements here for all regs, no matter what mode
 				X_GLUE_REGISTER_RESETS_X
@@ -246,7 +259,7 @@
 
 	always @( posedge S_AXI_ACLK )
 	begin
-	  if ( S_AXI_ARESETN == 1'b0 )
+	  if ( GLUE_RESETN == 1'b0 )
 	    begin
 	      axi_bvalid  <= 0;
 	      axi_bresp   <= 2'b0;
@@ -280,7 +293,7 @@
 
 	always @( posedge S_AXI_ACLK )
 	begin
-	  if ( S_AXI_ARESETN == 1'b0 )
+	  if ( GLUE_RESETN == 1'b0 )
 	    begin
 	      axi_arready <= 1'b0;
 	      axi_araddr  <= 32'b0;
@@ -311,7 +324,7 @@
 	// cleared to zero on reset (active low).  
 	always @( posedge S_AXI_ACLK )
 	begin
-	  if ( S_AXI_ARESETN == 1'b0 )
+	  if ( GLUE_RESETN == 1'b0 )
 	    begin
 	      axi_rvalid <= 0;
 	      axi_rresp  <= 0;
@@ -350,7 +363,7 @@
 	// Output register or memory read data
 	always @( posedge S_AXI_ACLK )
 	begin
-	  if ( S_AXI_ARESETN == 1'b0 )
+	  if ( GLUE_RESETN == 1'b0 )
 	    begin
 	      axi_rdata  <= 0;
 	    end 

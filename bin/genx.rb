@@ -702,9 +702,9 @@ def axi_gen_text( text ) ###_EXT_### emit the finished text of the generated AXI
   ####### iterate over the regs supplied by the input script
   
   $g_reg_defs.each_with_index do |regdef, index|
-    if ($debugmode != 0) then
-      printf( "\nProcessing register name '%s'",regdef.name );
-    end
+    #if ($debugmode != 0) then
+    #  printf( "\nProcessing register name '%s'",regdef.name );
+    #end
   
     ########################################## instance stuff   
     #instance the reg
@@ -900,6 +900,7 @@ end
 
 # xdc_start           method to start XDC setup - supply the names of the chip table and board table (currently CSV based)
 # xdc_set_iostandard  method to set the current IOSTANDARD (typ LVCMOS33) - it sticks for the pins added following
+# xdc_set_external_pin_suffix  method to set the suffix for external port names from a given module instance.  Vivado 2017.3 made me add this..
 # xdc_add_pin         method to add a pin connection (needs signal name, and physical connector pin name i.e. JA_P11)
 # xdc_generate_text   method to map all the pins to device signals (i.e. YY11) and generate the XDC text
 # xdc_write_xdc       ship result to xdc file in gen folder
@@ -909,9 +910,10 @@ end
 
 $g_xdc_chiptable = nil
 $g_xdc_boardtable = nil
-
+$g_xdc_pintable = nil
+$g_xdc_pintable_sysname = ""
 $g_xdc_iostandard = "LVCMOS33"
-
+$g_xdc_external_pin_suffix = "";
 $g_xdc_text = ""
 
 # this is good enough to skip blank lines and ignore any line that starts with some
@@ -964,7 +966,7 @@ $csv_options = { :headers => true, :header_converters => :symbol, :skip_blanks =
 #
 # etc.  each pin gets a link to a signal, and an iostandard set.
 
-def xdc_start( chiptable, boardtable ) ###_EXT_### start up a collection of XDC constraints
+def xdc_start( chiptable, boardtable, pintable, sysname ) ###_EXT_### start up a collection of XDC constraints
 
   chiptablepath = find_file( chiptable )
   $g_xdc_chiptable = CSV.read( chiptablepath, $csv_options );
@@ -983,9 +985,25 @@ def xdc_start( chiptable, boardtable ) ###_EXT_### start up a collection of XDC 
     $g_xdc_boardtable.each do |row| printf( "\n%s %s %s %s", row[ :board ], row[ :conn ], row[ :conn_pin ], row[ :chip_pad ] ) end
     printf( "\n\n" )
   end 
+
+  if (pintable != "")
+    pintablepath = find_file( pintable )
+    $g_xdc_pintable = CSV.read( pintablepath, $csv_options );
+
+    $g_xdc_pintable_sysname = sysname;
+
+    if ($debugmode!=0)
+      printf( "\n --- pin table %s ---", pintablepath.realpath )
+      $g_xdc_pintable.each do |row| printf( "\n%s ", row[ :signal ] ) end
+      printf( "\n\n" )
+    end 
+  end
   
   # default iostandard
   $g_xdc_iostandard = "LVCMOS33"
+
+  # empty out the ext pin suffix
+  $g_xdc_external_pin_suffix = "";
   
   # empty the text buffer
   $g_xdc_text = ""
@@ -996,6 +1014,10 @@ def xdc_set_iostandard( str ) ###_EXT_### set the current pin IOSTANDARD that wi
   $g_xdc_iostandard = str
 end
 
+def xdc_set_external_pin_suffix( str )
+  $g_xdc_external_pin_suffix = str
+end  
+
 def xdc_add_pin( netname, conn, connpin ) ###_EXT_### add one pin mapping to the collection
   # signal is a net name in the verilog module - i.e. leds_out[0]
   # conn is a connector label for the board (JA, JB, etc)
@@ -1004,6 +1026,8 @@ def xdc_add_pin( netname, conn, connpin ) ###_EXT_### add one pin mapping to the
 	# scrub any whitespace that may have snuck in
 	conn.strip!
 	connpin.strip!
+
+  # modify netname to include the external pin name suffix if any has been set
 
   # using the board table, map conn and conn_pin to the chip_pad
   boardtable_rows = $g_xdc_boardtable.select{ |row| (row[:conn]==conn) && (row[:conn_pin]==connpin) }
@@ -1050,6 +1074,34 @@ def xdc_add_pin( netname, conn, connpin ) ###_EXT_### add one pin mapping to the
     abort "stopping"    
   end
 end
+
+def xdc_add_sys_pin( netname ) ###_EXT_### add one pin mapping to the collection, using pin table and sysname to select conn/pin
+
+  pintable_rows = $g_xdc_pintable.select{ |row| (row[:signal]==netname) }
+
+  if (pintable_rows.size == 1)
+    # figure out which column matches g_xdc_pintable_sysname
+
+    row = pintable_rows[0];
+
+    #printf("\nrow: %s", row.to_a)
+
+    value = pintable_rows[0][ $g_xdc_pintable_sysname.to_sym ];
+
+    #printf("\nFound %s --> %s", netname, value)
+
+    if (value != "")
+      # crack it
+      conn_and_pin = value.split(".")
+      conn = conn_and_pin[0]
+      pin = conn_and_pin[1]
+      if (conn!="" && pin!="")
+        xdc_add_pin( netname, conn, pin)
+      end # end if conn / pin
+    end #end if value
+  end # end if row size
+end # end def
+
 
 def xdc_add_iostandard_for_bank( bank, standard )
   #one way
